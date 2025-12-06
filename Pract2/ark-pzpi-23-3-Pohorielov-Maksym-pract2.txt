@@ -1,1 +1,671 @@
+﻿МІНІСТЕРСТВО НАУКИ І ОСВІТИ УКРАЇНИ
 
+
+ХАРКІВСЬКИЙ НАЦІОНАЛЬНИЙ УНІВЕРСИТЕТ РАДІОЕЛЕКТРОНІКИ
+
+
+
+
+
+
+
+
+
+
+Кафедра «Програмна інженерія»
+
+
+
+
+
+
+
+
+ЗВІТ
+з практичної роботи №2
+ з дисципліни: «Аналіз та рефакторинг коду»
+з теми: «Застосування Extract Method, Rename Method та Replace Error Codes Method у Django-проєктах»
+
+
+
+
+
+
+
+
+
+
+ 
+Виконав:                                                                   Прийняв:
+ст. гр. ПЗПІ-23-3                                                      ст. викл. каф. ПІ
+Погорєлов М. І.                                                        Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+1 ІСТОРІЯ ЗМІН
+
+
+№
+	Назва
+	Дата
+	Версія звіту
+	1
+	Початок роботи над презентацією
+	03.12.2025
+	0.1
+	2
+	Початок роботи над доповіддю
+	04.12.2025
+	1
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2 ЗАВДАННЯ
+
+
+Застосування Extract Method, Rename Method та Replace Error Codes Method у Django-проектах.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ
+Рефакторинг — це процес покращення внутрішньої структури коду без зміни його зовнішньої поведінки. Його основною метою є підвищення читабельності, зменшення технічного боргу та спрощення подальшої підтримки й розвитку програмного забезпечення. У веб-розробці на Python/Django рефакторинг відіграє особливо важливу роль, оскільки дозволяє підтримувати логічну структуру великого проєкту, запобігати помилкам і забезпечувати відповідність коду стандартам якості та архітектури. Було опрацьовано три методи рефакторингу
+Метод Extract Method полягає у виділенні частин довгого або складного методу в окремі, менші та зрозумілі функції. Це допомагає зменшити складність коду, підвищує його читабельність та полегшує тестування окремих компонентів. У контексті Django це особливо корисно для розбиття великих view-функцій, де змішуються різні логічні операції: валідація, робота з моделями, бізнес-логіка та обробка відповіді.
+Метод Rename Method передбачає зміну назв методів, функцій або змінних так, щоб вони чітко відображали їх призначення і реальну поведінку. Завдяки цьому код стає самодокументованим і легко зрозумілим для інших розробників. У Django це особливо важливо для view-функцій, сервісних методів і логіки модулів, адже неінформативні назви створюють плутанину та ускладнюють навігацію в проєкті.
+Replace Error Codes — це метод рефакторингу, що полягає у заміні кодів помилок (наприклад, -1, 0, None) на винятки. Використання винятків дозволяє створити прозорий і передбачуваний потік обробки помилок, уникнути магічних значень і забезпечити відповідність стандартам Django, який активно використовує exceptions для сигналізації про проблеми. Такий підхід робить код безпечнішим, надійнішим та зручнішим для тестування.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4 ВИСНОВКИ
+
+
+У результаті виконаної роботи було досліджено ключові методи рефакторингу коду, які є важливою складовою забезпечення якості програмного забезпечення та підтримуваності веб-проєктів на Python/Django. Аналіз трьох вибраних технік — Extract Method, Rename Method та Replace Error Codes Method — продемонстрував, що рефакторинг не лише покращує внутрішню структуру коду, але й значно підвищує зручність його читання, тестування та модифікації.
+Extract Method дозволяє розділяти великі фрагменти логіки на окремі функції, що робить код прозорішим і легшим для підтримки. Завдяки використанню Rename Method назви функцій та методів стають самодокументованими, що покращує командну роботу й зменшує ризик помилок, пов’язаних із нерозумінням логіки. Replace Error Codes Method забезпечує коректний і безпечний потік обробки помилок, роблячи поведінку програми передбачуваною та відповідною до стандартів Django.
+Загалом проведене дослідження підтверджує, що використання рефакторингу є необхідним для побудови чистого, структурованого та масштабованого коду. Рефакторинг сприяє зменшенню технічного боргу, полегшує розширення функціоналу та підвищує надійність програмного забезпечення, що є критично важливим у сучасній веб-розробці.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5 ВИКОРИСТАНІ ДЖЕРЕЛА
+
+
+1. Мартін, Р. Чистий код: створення, аналіз та рефакторинг.
+ Фабула, 2019. — 416 с.
+2.  Django Best Practices — Clean Code & Refactoring
+https://docs.djangoproject.com/en/dev/misc/design-philosophies/
+3. Django Documentation — Error Handling, Exceptions.
+ https://docs.djangoproject.com/en/dev/topics/exceptions/
+4. PEP 8 — Style Guide for Python Code.
+ https://peps.python.org/pep-0008/
+5.  Refactoring in Python — Refactoring.Guru (Python Examples)
+ https://refactoring.guru/refactoring/catalog?language=python
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК А
+Відеозапис 
+Відеозапис доповіді: https://youtu.be/9Wh-w5zUPX4
+Хронологічний опис відеозапису:
+00:00 Вступ
+00:15 Для чого потрібен рефакторинг
+00:48 Extract Method
+01:15 Extract Method: ( До )
+01:53 Extract Method: ( Після )
+02:41 Rename Method
+03:10 Rename Method: ( До )
+03:44 Rename Method: ( Після )
+04:09 Replace Error Codes Method
+04:48 Replace Error Codes Method: ( До )
+05:22 Replace Error Codes Method: ( Після )
+05:55 Висновки
+06:26 Джерела
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК Б
+Слайди презентації
+
+
+  
+
+Рисунок Б.1 - титульний слайд
+
+
+  
+
+Рисунок Б.2 - Що таке рефакторинг
+  
+
+Рисунок Б.3 - Extract Method
+
+
+  
+
+Рисунок Б.4 - Extract Method приклад (до рефакторингу)
+  
+
+Рисунок Б.5 - Extract Method приклад (після рефакторингу)
+
+
+  
+
+Рисунок Б.6 - Rename Method
+  
+
+Рисунок Б.7 - Rename Method приклад (до рефакторингу)
+
+
+
+
+  
+
+Рисунок Б.8 - Rename Method приклад (після рефакторингу)
+
+
+  
+
+Рисунок Б.9 - Replace Error Codes Method 
+
+
+  
+
+Рисунок Б.10 - Replace Error Codes Method (до рефакторингу)
+  
+
+Рисунок Б.11 - Replace Error Codes Method (після рефакторингу)
+
+
+  
+
+Рисунок Б.12 - Висновки
+  
+
+Рисунок Б.13 - Список джерел
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК В
+Програмний код
+B.1 Приклад програмного коду до рефакторингу
+1. def register_user(request):
+2.     if request.method == "POST":
+3.         # зчитування даних форми
+4.         username = request.POST.get("username")
+5.         email = request.POST.get("email")
+6.         password = request.POST.get("password")
+7.
+8.         # валідація
+9.         if not username or not email or not password:
+10.             return render(request, "register.html", {"error": "Поля обов'язкові"})
+11.
+12.         if User.objects.filter(username=username).exists():
+13.             return render(request, "register.html", {"error": "Користувач вже існує"})
+14.
+15.         # створення користувача
+16.         user = User.objects.create_user(
+17.             username=username,
+18.             email=email,
+19.             password=password
+20.         )
+21.
+22.         # відправка листа
+23.         send_mail(
+24.             "Реєстрація успішна",
+25.             f"Вітаємо, {username}!",
+26.             "noreply@example.com",
+27.             [email],
+28.         )
+29.
+30.         return redirect("login")
+31.
+32.     return render(request, "register.html")
+
+
+В.2  Приклад програмного коду після рефакторингу
+1.  def validate_registration_data(username, email, password):
+2.      if not username or not email or not password:
+3.          return "Поля обов'язкові"
+4.
+5.      if User.objects.filter(username=username).exists():
+6.          return "Користувач вже існує"
+7.
+8.      return None
+9.
+10. def create_new_user(username, email, password):
+11.     return User.objects.create_user(
+12.         username=username,
+13.         email=email,
+14.         password=password
+15.     )
+16.
+17. def send_welcome_email(email, username):
+18.     send_mail(
+19.         "Реєстрація успішна",
+20.         f"Вітаємо, {username}!",
+21.         "noreply@example.com",
+22.         [email],
+23.     )
+24.
+25. def register_user(request):
+26.     if request.method == "POST":
+27.         username = request.POST.get("username")
+28.         email = request.POST.get("email")
+29.         password = request.POST.get("password")
+30.
+31.         # окремий метод валідації
+32.         error = validate_registration_data(username, email, password)
+33.         if error:
+34.             return render(request, "register.html", {"error": error})
+35.
+36.         # окремий метод створення користувача
+37.         user = create_new_user(username, email, password)
+38.
+39.         # окремий метод відправки email
+40.         send_welcome_email(email, username)
+41.
+42.         return redirect("login")
+43.
+44.     return render(request, "register.html")
+
+
+В.3 Rename Method до рефакторингу 
+1.  def do_it(request):
+2.      user_id = request.GET.get("u")
+3.      product_id = request.GET.get("p")
+4.
+5.      user = User.objects.get(id=user_id)
+6.      product = Product.objects.get(id=product_id)
+7.
+8.      if product.quantity > 0:
+9.          product.quantity -= 1
+10.         product.save()
+11.
+12.         PurchaseHistory.objects.create(
+13.             user=user,
+14.             product=product
+15.         )
+16.
+17.         send_mail(
+18.             "Покупка успішна",
+19.             f"Ви купили: {product.name}",
+20.             "shop@example.com",
+21.             [user.email],
+22.         )
+23.
+24.     return redirect("home")
+
+
+B.4 Rename Method після рефакторингу
+1.  def process_product_purchase(request):
+2.      user_id = request.GET.get("u")
+3.      product_id = request.GET.get("p")
+4.
+5.      user = User.objects.get(id=user_id)
+6.      product = Product.objects.get(id=product_id)
+7.
+8.      if product.quantity > 0:
+9.          product.quantity -= 1
+10.         product.save()
+11.
+12.         PurchaseHistory.objects.create(
+13.             user=user,
+14.             product=product
+15.         )
+16.
+17.         send_mail(
+18.             "Покупка успішна",
+19.             f"Ви купили: {product.name}",
+20.             "shop@example.com",
+21.             [user.email],
+22.         )
+23.
+24.     return redirect("home")
+
+
+В.5 Replace Error Codes Method до рефакторингу
+1.  def get_product_price(product_id):
+2.      try:
+3.          product = Product.objects.get(id=product_id)
+4.          return product.price
+5.      except Product.DoesNotExist:
+6.          return -1     
+7.      except ValueError:
+8.          return 0     
+
+
+В.6 Replace Error Codes Method після рефакторингу
+1.  def get_product_price(product_id):
+2.      try:
+3.          product = Product.objects.get(id=product_id)
+4.          return product.price
+5.      except Product.DoesNotExist:
+6.          raise ObjectDoesNotExist("Продукт не знайдено")
