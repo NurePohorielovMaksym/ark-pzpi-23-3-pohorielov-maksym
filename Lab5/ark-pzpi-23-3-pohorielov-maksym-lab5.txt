@@ -1,0 +1,954 @@
+﻿МІНІСТЕРСТВО НАУКИ І ОСВІТИ УКРАЇНИ
+
+
+ХАРКІВСЬКИЙ НАЦІОНАЛЬНИЙ УНІВЕРСИТЕТ РАДІОЕЛЕКТРОНІКИ
+
+
+
+
+
+
+
+
+
+
+Кафедра «Програмна інженерія»
+
+
+
+
+
+
+
+
+ЗВІТ
+з лабораторної роботи №5
+ з дисципліни: «Аналіз та рефакторинг коду»
+з теми: «Програмна система для автоматизації годування домашніх тварин»
+
+
+
+
+
+
+
+
+
+
+ 
+Виконав:                                                                   Прийняв:
+ст. гр. ПЗПІ-23-3                                                      ст. викл. каф. ПІ
+Погорєлов М. І.                                                        Сокорчук Ігор Петрович
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Харків 2025
+1. ІСТОРІЯ ЗМІН
+
+
+№
+	Дата
+	Опис змін
+	Версія звіту
+	1
+	29.12.2025
+	початок роботи
+	0.1
+	2
+	30.12.2025
+	редагування попередньої версії
+	1
+	
+
+2. ЗАВДАННЯ
+
+
+ Навчитися розгортати програмну систему, перевіряти її функціональність, виконувати налаштування, а також демонструвати та документувати роботу системи.
+
+
+3. ОПИС ВИКОНАНОЇ РОБОТИ
+3.1 Організація інфраструктури та розгортання 
+Процес розгортання програмної системи «FeedMate» базується на принципах контейнеризації, що дозволяє забезпечити стабільну роботу всіх компонентів незалежно від конфігурації хост-машини. Основним інструментом розгортання було обрано платформу Docker, яка дозволяє об’єднати серверний код, систему управління базами даних та засоби імітації апаратного забезпечення в єдину ізольовану екосистему. Використання Docker Compose дало змогу описати всю інфраструктуру в одному декларативному файлі, що автоматизує створення мереж, томів даних та черговість запуску сервісів.
+Центральним елементом системи збереження даних є сервер Microsoft SQL Server 2022. Оскільки стандартні контейнеризовані бази даних запускаються без попередньо створеної структури, було реалізовано механізм автоматичної ініціалізації. Для цього розроблено скрипт init.sql, який монтується у спеціальну директорію контейнера. При першому старті система автоматично виконує цей скрипт, створюючи базу даних, налаштовуючи права доступу для спеціального користувача та розгортаючи реляційну схему таблиць. Такий підхід гарантує, що база даних завжди буде мати актуальну структуру таблиць, включаючи налаштовані зв’язки (Foreign Keys) та обмеження (Constraints) для сутностей користувачів, пристроїв та графіків годування.
+Для збереження інформації між перезапусками контейнерів налаштовано механізм персистентних томів (Persistent Volumes). Це дозволяє зберігати файли бази даних безпосередньо на диску хост-машини, захищаючи систему від втрати даних у разі оновлення образів або випадкової зупинки сервісу. Крім того, для забезпечення стабільного з'єднання між сервером та базою даних було впроваджено систему перевірки стану (Healthcheck). Вона автоматично затримує запуск серверної частини до моменту повної готовності SQL-сервера до обробки запитів, що запобігає виникненню помилок підключення при старті системи.
+Серверна частина системи, реалізована на платформі Node.js, розгортається на базі мінімалістичного образу Linux Alpine. Це суттєво зменшує обсяг дискового простору, який займає контейнер, та підвищує загальну безпеку системи за рахунок мінімізації кількості встановлених пакетів. Внутрішня мережа Docker налаштована таким чином, що бекенд взаємодіє з базою даних через закритий шлюз за внутрішнім іменем сервісу, тоді як для зовнішніх клієнтів відкривається лише порт 3000. Усі конфіденційні дані, такі як паролі до бази даних та ключі шифрування, передаються в систему через змінні середовища, що відповідає сучасним стандартам безпеки розробки (Twelve-Factor App).
+Загальна координація сервісів виконується через bridge-мережу Docker, яка ізолює трафік проекту від зовнішніх мереж. Увесь процес розгортання — від створення бази даних до запуску симулятора пристрою — ініціюється однією командою збірки. Це дозволяє швидко розгорнути ідентичну копію системи на будь-якому іншому сервері, забезпечуючи високу мобільність та легкість у тестуванні програмного комплексу.
+
+
+4. ФРАГМЕНТИ ПРОГРАМНОГО КОДУ
+4.1 Серверна реалізація бізнес-процесів
+1. Аутентифікація та користувачі 
+* Реєстрація користувача - api/auth/register (POST)
+Приклад запиту:
+  {
+"email": "testuser06@gmail.com",
+"password": "Testuser10",
+"fullName": "Test06"
+  }
+Приклад успішної відповіді
+  {
+"ok": true,
+ "user": {
+ "id": 4,
+                 "email": "testuser06@gmail.com",
+"fullName": "Test06"
+},
+  }
+* Авторизація користувача - api/auth/login (POST)
+Приклад запиту:
+  {
+                    "email": "testuser06@gmail.com",
+                    "password": "Testuser10"
+  }
+Приклад успішної  відповіді:
+  {
+"ok": true,
+"user": {
+"id": 4,
+"email": "testuser06@gmail.com",
+"fullName": "Test06"
+  },
+"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjQsImVtYWlsIjoidGVzdHVzZXIwNkBnbWFpbC5jb20iLCJpYXQiOjE3NjY0MDA5NTcsImV4cCI6MTc2NzAwNTc1N30.-y3EgS3ZJzfHHNo_8ylkUW_9nYJ3Hl6X14GkdKL8GY0"
+  }
+2. Управління тваринами
+* Отримання списку тварин поточного користувача - /api/pets (GET)
+Приклад успішної відповіді:
+  {
+"ok": true,
+"pets": [
+{
+"id": 7,
+"userId": 4,
+"name": "Laki",
+"photoUrl": null,
+"foodType": "Dry food",
+"recommendedPortionGrams": 60,
+"feedingPlanId": null
+                                }
+                    ]
+  }
+* Створення нової тварини - /api/pets/add (POST)
+Приклад запиту
+  {
+"name": "Laki",
+"photoURL": "-",
+"foodType": "Dry food",
+"recommendedPortionGrams": "70"
+   }
+  Приклад успішної відповіді:
+  {
+"ok": true,
+"pet": {
+"id": 8,
+"userId": 4,
+"name": "Laki",
+"photoUrl": null,
+"foodType": "Dry food",
+"recommendedPortionGrams": 70,
+"feedingPlanId": null
+                    }
+   }
+* Видалення тварини - /api/pets/{petId} (DELETE)
+Приклад успішної відповіді:
+  {
+                    "ok": true
+  }
+* Призначення плану годування тварині - /api/pets/{petId}/feeding-plan (POST)
+Приклад запиту:
+  {
+"feedingPlanId": 10
+  }
+Приклад успішної відповіді:
+  {
+                    "ok": true,
+                    "pet": {
+        "id": 7,
+        "userId": 4,
+        "name": "Laki",
+        "photoUrl": null,
+        "foodType": "Dry food",
+                                "recommendedPortionGrams": 60,
+                                "feedingPlanId": 10
+}
+  }
+* Отримання розкладу годування для тварини - /api/pets/{petId}/schedules (GET)
+Приклад успішної відповіді:
+  {
+    "ok": true,
+    "schedules": [
+        {
+            "id": 11,
+            "feedTime": "1970-01-01T06:00:00.000Z",
+            "portionGrams": 13,
+            "mode": "AUTO",
+            "enabled": true
+        },
+        {
+            "id": 13,
+            "feedTime": "1970-01-01T20:00:00.000Z",
+            "portionGrams": 13,
+            "mode": "AUTO",
+            "enabled": true
+        }
+]
+  }
+
+
+* Отримання актуального розкладу годування для тварини - /api/pets/{petId}/rec-portion (POST)
+Приклад успішної відповіді:
+ {
+"ok": true,
+"message": "Рекомендовану порцію оновлено",
+"data": {
+                  "petId": 13,
+                  "recommendedPortionGrams": {
+                      "portion": 20,
+                                      "typeUsed": "Dry"
+                     }
+ }
+}
+
+
+
+
+3. Плани та розклад годування
+* Створення нового плану годування - /api/feeding-plans/add (POST)
+Приклад запиту:
+  {
+                    "name": "For Shpitz-terier",
+                    "description": "Dry food, 3 times a day: Morning/Afternoon/Evening"
+  }
+Приклад успішної відповіді:
+  {
+                    "ok": true,
+                    "plan": {
+     "id": 11,
+                              "userId": 4,
+     "name": "For Shpitz-terier",
+                                     "description": "Dry food, 3 times a day: Morning/Afternoon/Evening",
+                  "createdAt": "2025-12-22T11:41:46.247Z"
+                   }
+  }
+2. Отримання всіх планів користувача - /api/feeding-plans (GET)
+Приклад успішної відповіді:
+  {
+    "ok": true,
+    "plans": [
+                {
+                    "id": 11,
+            "userId": 4,
+            "name": "For Shpitz-terier",
+            "description": "Dry food, 3 times a day: Morning/Afternoon/Evening",
+                                      "createdAt": "2025-12-22T11:41:46.247Z"
+                },
+                       {
+          "id": 10,
+                                    "userId": 4,
+                                    "name": "For Laki",
+          "description": "Dry food, 3 times a day: Morning/Afternoon/Evening ",
+          "createdAt": "2025-12-22T11:27:45.477Z"
+                       }
+ ]
+  }
+3. Додавання записів розкладу до плану -  /api/feeding-plans/{planId}/schedules (POST)
+Приклад запиту:
+  {
+    "feedTime": "20:00:00",
+    "portionGrams": "13",
+                    “mode”: AUTO
+  }
+Приклад успішної відповіді:
+  {
+    "id": 13,
+    "feedTime": "1970-01-01T20:00:00.000Z",
+    "portionGrams": 13,
+    "mode": "AUTO",
+    "enabled": true,
+    "planId": 11
+  }
+4. Події годування
+* Створення події годування (автоматичної або ручної) - /api/events/add (POST)
+Приклад запиту:
+  {
+  "petId": 7,
+  "deviceId": 2,
+  "portionGrams": 13,
+  "source": "AUTO",
+  "result": "OK"
+  }
+Приклад успішної відповіді
+  {
+                    "message": "Feeding event created"
+  }
+* Отримання історії годувань конкретної тварини - /api/events/pet/{petId} (GET)
+Приклад успішної відповіді
+  [
+    {
+                                "id": 16,
+        "petId": 7,
+        "deviceId": 2,
+                                 "fedAt": "2025-12-22T15:34:22.209Z",
+                                 "portionGrams": 13,
+                                  "source": "MANUAL_APP",
+        "result": "OK"
+    },
+    {
+        "id": 14,
+        "petId": 7,
+        "deviceId": 2,
+        "fedAt": "2025-12-22T15:28:40.922Z",
+        "portionGrams": 13,
+        "source": "AUTO",
+        "result": "OK"
+    }
+]
+5. Розклади годувань
+* Отримати розклади, прив’язані до планів годувань - /api/schedules/plans/{planId}(GET).
+Приклад успішної відповіді
+{
+  "ok": true,
+  "schedules": [
+    {
+      "id": 18,
+      "feedTime": "1970-01-01T09:45:00.000Z",
+      "portionGrams": 65,
+      "mode": "AUTO",
+      "enabled": true,
+      "planId": 13
+    },
+    {
+      "id": 16,
+      "feedTime": "1970-01-01T12:00:00.000Z",
+      "portionGrams": 70,
+      "mode": "AUTO",
+      "enabled": true,
+      "planId": 13
+            }
+                  ]
+}
+* Додавання розкладу до планів годувань - /api/schedules/plans/{planId}(POST).
+Приклад запиту:
+{
+"feedTime": "21:00",
+"portionGrams": 70
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "schedule": {
+    "id": 19,
+    "feedTime": "1970-01-01T21:00:00.000Z",
+    "portionGrams": 70,
+    "mode": "AUTO",
+    "enabled": true,
+    "planId": 13
+ }
+}
+* Додавання розкладу до планів годувань - /api/schedules/{scheduleId}(PATCH).
+Приклад запиту:
+{
+  "feedTime": "21:45",
+  "portionGrams": 65
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "message": "Розклад успішно оновлено",
+  "data": {
+    "id": 19,
+    "feedTime": "1970-01-01T21:45:00.000Z",
+    "portionGrams": 65,
+    "mode": "AUTO",
+    "enabled": true,
+    "planId": 13
+  }}
+6. Керування пристроями користувача
+* Отримати розклади, прив’язані до планів годувань - /api/devices/add(POST).
+Приклад запиту:
+{
+          "serial": "QQQ1",
+  "name": "feeder",
+          "capacity": "3000"
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "device": {
+    "id": 22,
+    "userId": 10,
+    "serial": "QQQ1",
+    "name": "feeder",
+    "capacity": "3000",
+    "isConnected": false
+  },
+    "apiKey": "901d37a1b619916a0ca634467a0a23f1a70d8bb4a8897b85961686c5c7efc211"
+}
+* Отримати розклади, прив’язані до планів годувань - /api/devices/connect(POST).
+Приклад запиту:
+{
+  "name": "feeder",
+  "serial": "QQQ1",
+"apiKey": "901d37a1b619916a0ca634467a0a23f1a70d8bb4a8897b85961686c5c7efc211"
+}
+Приклад успішної відповіді
+{
+          "ok": true,
+  "message": "Пристрій feeder успішно підключено!"
+}
+* Отримати розклади, прив’язані до планів годувань - /api/devices/{deviceId}/refill(POST).
+Приклад запиту:
+{
+  "grams": 120
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "message": "Запас корму оновлено",
+  "data": {
+    "added": 120,
+    "totalNow": 800,
+    "percentNow": "80%"
+  }
+}
+* Отримати розклади, прив’язані до планів годувань - /api/schedules/pets/{petId}/feed-now(POST).
+Приклад запиту:
+{
+  "deviceId": 16,
+  "portionGrams": 50,
+  "foodType": "Dry"
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "message": "Команда на годування відправлена",
+  "event": {
+    "id": 118,
+    "petId": 13,
+    "deviceId": 16,
+    "portionGrams": 50,
+    "foodType": "Dry",
+    "source": "MANUAL_BUTTON",
+    "result": "OK",
+    "fedAt": "2026-01-12T01:35:01.220Z",
+    "foodLevel": 750,
+                            "foodLevelPercent": 75
+  }
+}
+4.2 Логіка адміністрування серверної частини.
+Адміністратори мають розширені права: можуть переглядати статистику та змінювати роль користувачам.
+* Отримати список, усіх користувачів  - /api/admin/users(GET).
+Приклад успішної відповіді
+[
+  {
+    "id": 10,
+    "email": "user@example.com",
+    "fullName": "John Doe",
+    "role": "admin",
+    "createdAt": "2025-12-27T20:53:00.878Z"
+  },
+  {
+    "id": 1,
+    "email": "test1@mail.com",
+    "fullName": "Test User",
+    "role": "admin",
+    "createdAt": "2025-12-15T13:19:53.872Z"
+  }
+]
+* Моніторинг усіх пристроїв у системі - /api/admin/users(GET).
+Приклад успішної відповіді
+[
+  {
+    "id": 14,
+    "name": "Kitchen feeder",
+    "serial": "ABC-123456",
+    "ownerEmail": "user@example.com",
+    "lastSeenAt": "2025-12-28T19:24:02.253Z"
+  },
+  {
+    "id": 22,
+    "name": "feeder",
+    "serial": "QQQ1",
+    "ownerEmail": "user@example.com",
+    "lastSeenAt": "2026-01-12T01:27:36.583Z"
+  }
+]
+
+
+* Отримання глобальної статистики системи- /api/admin/stats(GET).
+Приклад успішної відповіді
+{
+  "ok": true,
+  "generatedAt": "2026-01-13T10:00:11.425Z",
+  "overview": {
+    "users": {
+      "total": 1,
+      "withPets": 1,
+      "withoutPets": 0
+    },
+    "pets": {
+      "total": 1,
+      "averagePerUser": "1.0",
+      "withActivePlans": 1
+    }
+  },
+  "plansAndSchedules": {
+    "totalPlans": 1,
+    "adoptionRate": "100.0%"
+  },
+  "iotHealth": {
+    "devices": {
+      "total": 1,
+      "onlineNow": 0,
+      "onlineRate": "0.0%"
+    }
+  },
+  "activity": {
+    "totalFeedings": 26,
+    "feedingsLast24h": 26,
+    "successRate": "100.0%",
+    "errorsCount": 0,
+    "foodTypeDistribution": {
+      "dry": 26,
+      "wet": 0
+    },
+    "recentUsers": [
+      {
+        "email": "user@example.com",
+        "createdAt": "2026-01-12T19:30:52.9055956"
+      }
+    ]
+  }
+}
+* Зміна ролі користувача - /api/admin/role(PATCH)
+Приклад запиту:
+{
+  "userId": 2,
+  "role": "admin"
+}
+Приклад успішної відповіді
+{
+  "ok": true,
+  "message": "Роль користувача 2 змінено на admin" }
+4.3 Клієнт‑серверна логіка в IoT‑середовищі
+1. Код ініціалізації та системної конфігурації
+Функція setup() є точкою входу в програму. Вона виконує послідовну ініціалізацію: налаштування послідовного порту для дебагу, конфігурацію пінів (вхід/вихід) та підключення сервоприводу. Особливістю реалізації є блокуючий виклик fetchPetProfile() — система не перейде до основного циклу, доки не отримає конфігурацію з сервера, що гарантує коректність прив'язки даних (petId, deviceId) перед початком роботи:
+
+
+void setup() {
+  Serial.begin(115200);
+  // Налаштування периферії
+  pinMode(BTN_FEED_PIN, INPUT_PULLUP);
+  feeder.attach(SERVO_PIN);
+  feeder.write(0); // Встановлення безпечного стану механізму
+
+
+  setLED("starting");
+  connectWiFi();
+
+
+  // Критична секція: завантаження профілю
+  if (fetchPetProfile()) {
+    state.isConnected = true;
+    fetchSchedules();
+    updateLEDIndicators();
+    Serial.println("Система успішно ініціалізована ✓");
+  } else {
+    // Блокування роботи у випадку помилки авторизації
+    setLED("error");
+  }
+}
+
+
+Функція connectWiFi() реалізує алгоритм підключення до мережі з механізмом тайм-ауту (Watchdog). Цикл while обмежений лічильником спроб (25 разів), що запобігає "зависанню" контролера у нескінченному циклі при відсутності мережі. У разі успіху IP-адреса виводиться в консоль для діагностики:
+
+
+void connectWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts++ < 25) {
+    delay(400);
+    Serial.print(".");
+  }
+  // ... логіка виводу статусу з'єднання
+}
+2. Код взаємодії з API (REST Client)
+Функція fetchPetProfile() виконує динамічну конфігурацію пристрою. Вона робить GET-запит на сервер, використовуючи унікальний серійний номер DEVICE_SERIAL. Отримана JSON-відповідь містить критичні параметри: ідентифікатор тварини (petId), рекомендований розмір порції та загальну ємність контейнера. Це дозволяє використовувати одну й ту саму прошивку для різних пристроїв без перекомпіляції:
+
+
+bool fetchPetProfile() {
+  HTTPClient http;
+  // Формування динамічного URL
+  String url = String(SERVER_URL) + "/api/devices/my-pet-profile/" + String(DEVICE_SERIAL);
+  
+  http.begin(url);
+  http.addHeader("x-device-key", DEVICE_API_KEY); // Авторизація за API Key
+
+
+  int code = http.GET();
+  if (code == 200) {
+    // Десеріалізація налаштувань
+    StaticJsonDocument<512> doc;
+    deserializeJson(doc, http.getString());
+    
+    state.petId = doc["profile"]["petId"];
+    state.recommendedPortion = doc["profile"]["recommendedPortionGrams"];
+    return true;
+  }
+  return false;
+}
+
+
+Функція sendHeartbeat() відповідає за моніторинг стану пристрою ("Keep-Alive"). Вона періодично надсилає короткий запит на сервер, підтверджуючи, що пристрій онлайн і готовий приймати команди. Це дозволяє відображати актуальний статус "Online" в інтерфейсі користувача:
+
+
+void sendHeartbeat() {
+  if (!state.isConnected) return;
+  
+  HTTPClient http;
+  String url = String(SERVER_URL) + "/api/devices/heartbeat";
+  
+  StaticJsonDocument<64> doc;
+  doc["deviceId"] = state.deviceId;
+  
+  // Відправка легкого JSON для економії трафіку
+  String json;
+  serializeJson(doc, json);
+  http.POST(json);
+  http.end();
+}
+
+
+Функція sendRefillRequest() обробляє логіку поповнення бункера. При натисканні кнопки поповнення, пристрій повідомляє сервер про додавання корму (REFILL_AMOUNT). Сервер оновлює залишки в базі даних і повертає актуальне загальне значення (totalNow), яке синхронізується з локальним станом state.foodLevel:
+
+
+bool sendRefillRequest(int grams) {
+  // ... ініціалізація HTTP ...
+  StaticJsonDocument<200> doc;
+  doc["grams"] = grams;
+  
+  int httpCode = http.POST(requestBody);
+  
+  if (httpCode == 200 || httpCode == 201) {
+     // Синхронізація залишків після поповнення
+     DynamicJsonDocument response(1024);
+     deserializeJson(response, http.getString());
+     state.foodLevel = response["data"]["totalNow"];
+     updateLEDIndicators(); // Оновлення світлодіода
+     return true;
+  }
+  return false;
+}
+
+
+Функція забезпечує зворотний зв'язок пристрою із сервером після спрацювання автоматичного розкладу. На відміну від ручного запиту (sendFeedRequest), де ми спочатку чекаємо дозволу, тут дія вже виконана, і ми лише повідомляємо результат ("пост-фактум"). Важливою особливістю є обробка відповіді сервера: бекенд повертає актуальний розрахований рівень корму (foodLevel), який записується в пам'ять пристрою:
+void reportAutoFeed(int grams) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+
+  HTTPClient http;
+  String url = String(SERVER_URL) + "/api/schedules/pets/" + String(PET_ID) + "/feed-auto";
+  
+  // Формування звіту: хто, скільки і чим годував
+  StaticJsonDocument<200> doc;
+  doc["deviceId"] = DEVICE_ID;
+  doc["portionGrams"] = grams;
+  doc["foodType"] = FOOD_TYPE; 
+
+
+  String requestBody;
+  serializeJson(doc, requestBody);
+
+
+  int httpCode = http.POST(requestBody);
+
+
+  // Обробка відповіді для синхронізації стану
+  if (httpCode > 0) {
+    String payload = http.getString();
+    DynamicJsonDocument responseDoc(1024);
+    deserializeJson(responseDoc, payload);
+
+
+    // Оновлення локального лічильника корму даними з сервера
+    if (responseDoc["event"].containsKey("foodLevel")) {
+       state.foodLevel = responseDoc["event"]["foodLevel"]; 
+       updateLEDIndicators(); 
+       Serial.printf("[SYNC] Food Level updated: %d g\n", state.foodLevel);
+    }
+  }
+  http.end();
+}
+3. Код бізнес-логіки та керування подіями
+Функція handleButtons() забезпечує взаємодію з користувачем через фізичні кнопки. Реалізовано програмний захист від брязкоту контактів (software debouncing) через перевірку часу останнього натискання (now - lastFeed > DEBOUNCE_MS). Функція розрізняє дві події: запит на видачу корму (з перевіркою дозволу від сервера) та запит на поповнення запасів:
+
+
+void handleButtons() {
+  unsigned long now = millis();
+
+
+  // Обробка кнопки "Годування"
+  if (digitalRead(BTN_FEED_PIN) == LOW && now - lastFeed > DEBOUNCE_MS) {
+    lastFeed = now;
+    // Синхронний запит дозволу на сервері
+    if (sendFeedRequest(state.recommendedPortion)) {
+      executeDispense(state.recommendedPortion);
+    } else {
+      setLED("error"); // Індикація відмови
+    }
+  }
+  
+  // Обробка кнопки "Поповнення" (аналогічно)...
+}
+
+
+Функція checkAutoFeeding() є ядром автоматизації. Вона працює на основі емульованого часу (для цілей тестування) або реального часу. Алгоритм порівнює поточну хвилину доби з масивом розкладів schedules. Якщо час співпадає і розклад активний (enabled), ініціюється видача корму, оновлюється локальний рівень залишків та надсилається асинхронний звіт (reportAutoFeed) на сервер:
+
+
+void checkAutoFeeding() {
+  // ... отримання поточного часу ...
+  for (int i = 0; i < schedules.count; i++) {
+      auto& sch = schedules.items[i];
+      // Перевірка збігу часу
+      if (sch.enabled && sch.hour == h && sch.minute == m) {
+        
+        executeDispense(sch.portionGrams); // Фізична дія
+        state.foodLevel -= sch.portionGrams; // Локальний облік
+        
+        reportAutoFeed(sch.portionGrams); // Звіт на бекенд
+        updateLEDIndicators();
+      }
+  }
+}
+
+
+Функція simulateTimeFromPot() використовується для демонстрації роботи пристрою. Вона зчитує аналогове значення з потенціометра (0-4095) і масштабує його у хвилини доби (0-1439). Це дозволяє швидко перевірити роботу розкладу без необхідності чекати реального настання часу годування:
+
+
+void simulateTimeFromPot() {
+  int raw = analogRead(POT_TIME_PIN);
+  // Маппінг: 0...4095 -> 00:00...23:59
+  state.simulatedMinutes = map(raw, 0, 4095, 0, 1439);
+
+
+  // Логування зміни часу для налагодження
+  if (state.simulatedMinutes != state.lastMinutes) {
+    int h = state.simulatedMinutes / 60;
+    int m = state.simulatedMinutes % 60;
+    Serial.printf("[TIME] %02d:%02d\r\n", h, m);
+    state.lastMinutes = state.simulatedMinutes;
+  }
+}
+
+
+Функція updateLEDIndicators() та setLED() забезпечують візуальний зворотний зв'язок. Логіка індикації базується на залишках корму: якщо рівень падає нижче порогу LOW_FOOD_THRESHOLD_PCT (30%), загоряється червоний світлодіод, попереджаючи власника. Зелений колір свідчить про нормальний стан. Функція setLED дозволяє тимчасово перехоплювати керування для відображення системних подій (помилка, старт, успішна операція):
+
+
+void updateLEDIndicators() {
+  if (state.capacity <= 0) return;
+    int pct = (state.foodLevel * 100L) / state.capacity;
+  // Логіка перемикання кольорів залежно від залишку
+  if (pct > LOW_FOOD_THRESHOLD_PCT) {
+    digitalWrite(LED_GREEN_PIN, HIGH); // Норма
+    digitalWrite(LED_RED_PIN, LOW);
+  } else {
+    digitalWrite(LED_GREEN_PIN, LOW);
+    digitalWrite(LED_RED_PIN, HIGH);   // Увага
+  }
+}
+
+
+Функція відповідає за фізичне керування механікою дозатора. Вона інкапсулює роботу з бібліотекою ESP32Servo. Ключовим моментом є алгоритм конвертації "бізнес-величини" (грами) у "апаратну величину" (час роботи мотора). Використовується коефіцієнт 12 мс/г, визначений експериментальним шляхом для конкретного типу шнека. Логіка роботи: відкрити заслінку (90°) -> чекати розрахунковий час -> закрити заслінку (0°):
+
+
+void executeDispense(int grams) {
+  Serial.printf("[SERVO] Видача %d г... ", grams);
+  
+  feeder.write(90);       // Поворот сервоприводу у відриту позицію
+  delay(grams * 12);      // Блокуюча затримка для точного дозування
+  feeder.write(0);        // Повернення у закриту позицію
+  
+  Serial.println("виконано");
+}
+4. Код логіки візуальної індикації
+Функція працює у фоновому режимі та викликається в кожній ітерації головного циклу. Вона конвертує абсолютне значення ваги (грами) у відносне (відсотки) та порівнює його з пороговим значенням 30%:
+* Зелений індикатор: Рівень корму в нормі.
+* Червоний індикатор: Критично низький рівень, потрібне втручання користувача.
+
+
+void updateLEDIndicators() {
+  // Захист від ділення на нуль
+  if (state.capacity <= 0) return; 
+
+
+  // Розрахунок відсотка залишку
+  int pct = (state.foodLevel * 100L) / state.capacity;
+
+
+  // Логіка перемикання кольорів
+  if (pct > LOW_FOOD_THRESHOLD_PCT) {
+    digitalWrite(LED_GREEN_PIN, HIGH); // Все добре
+    digitalWrite(LED_RED_PIN, LOW);
+  } else {
+    digitalWrite(LED_GREEN_PIN, LOW);
+    digitalWrite(LED_RED_PIN, HIGH);   // УВАГА: мало корму
+  }
+}
+Функція забезпечує миттєвий зворотний зв'язок на дії користувача (натискання кнопок) або системні збої. Вона тимчасово перехоплює керування світлодіодами, відтворює заданий патерн (анімацію), а потім автоматично повертає систему до відображення рівня запасів.Реалізовані режими:
+1. "error": Тривале блимання червоним (помилка мережі, відмова сервера).
+2. "starting": Одночасне світіння обох діодів (тест справності при запуску).
+3. "ok": Короткий зелений сигнал (успішне виконання операції).
+
+
+void setLED(const char* mode) {
+  // Сценарій 1: Помилка (блимання червоним 3 рази)
+  if (strcmp(mode, "error") == 0) {
+    digitalWrite(LED_GREEN_PIN, LOW); 
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_RED_PIN, HIGH); delay(200);
+      digitalWrite(LED_RED_PIN, LOW);  delay(200);
+    }
+  } 
+  // Сценарій 2: Завантаження системи
+  else if (strcmp(mode, "starting") == 0) {
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    delay(1000);
+  } 
+  // Сценарій 3: Успішна дія
+  else if (strcmp(mode, "ok") == 0) {
+    digitalWrite(LED_RED_PIN, LOW);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    delay(400); // Коротка фіксація успіху
+  }
+  updateLEDIndicators();
+}
+
+
+
+
+5. UML-ДІАГРАМИ
+
+
+
+
+5.1 UML Діаграма прецедентів користувача
+  
+
+Рисунок 5.2 - UML діаграма для User
+
+
+
+
+5.2 Діаграма структури БД
+
+
+  
+
+Рисунок 5.2 - ER діаграма 
+
+
+
+
+5.3 UML діаграми для серверної частини системи
+  
+
+Рисунок 5.3 - UML діаграма діяльності оновлення ролі користувача
+  
+
+Рисунок 5.4 - UML діаграма взаємодії (адміністратор)
+
+
+
+
+
+
+5.3 UML діаграми для IoT частини системи
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+Рисунок 5.6 – UML діаграма прецедентів IoT клієнта
+  
+
+Рисунок 5.7 – UML діаграма діяльності IoT клієнта
+
+
+6. ВИСНОВКИ
+
+
+У ході виконання лабораторної роботи було успішно розгорнуто програмну систему «FeedMate» з використанням технології контейнеризації Docker. Реалізовано автоматичне налаштування бази даних MSSQL через скрипти ініціалізації, запущено серверну частину на Node.js та інтегровано емулятор IoT-пристрою для імітації реального навантаження. Це дозволило перевірити коректність архітектурних рішень, забезпечити надійне збереження даних та підтвердити готовність системи до експлуатації в ізольованому середовищі.
+
+
+7. ДЖЕРЕЛА
+1. Docker Compose Overview [Електронний ресурс]. – Режим доступу: https://docs.docker.com/compose/ – Дата доступу: 29.12.2025.
+2. Microsoft SQL Server Technical Documentation [Електронний ресурс]. – Режим доступу: https://learn.microsoft.com/en-us/sql/ – Дата доступу: 13.01.2026.
+3. Node-mssql Client Documentation [Електронний ресурс]. – Режим доступу: https://tediousjs.github.io/node-mssql/ – Дата доступу: 29.12.2025.
+4. Axios HTTP Client Documentation [Електронний ресурс]. – Режим доступу: https://axios-http.com/docs/intro – Дата доступу: 29.12.2025.
+5. The Twelve-Factor App Methodology [Електронний ресурс]. – Режим доступу: https://12factor.net/ – Дата доступу: 29.12.2025.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК А
+Відеозапис
+
+Відеозапис доповіді: https://youtu.be/49Fommd_hfc
+
+
+Хронологічний опис відеозапису:
+00:00 - Вступ
+00:10 - Обгрунтування вибору інструменту
+00:55 - Dockerfile
+01:31 - Compose.yaml файл
+05:12 - Розгортання системи
+06:05 - Тестування серверної частини
+06:48 - Тестування IoT частини
